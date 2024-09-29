@@ -188,3 +188,32 @@ resource "aws_instance" "splunk-forwarder" {
   }
 }
 
+# an empty resource block : Here we can connect to the server to run some bash commands that will allow us to install nexus.
+resource "null_resource" "name" {
+
+  # ssh into the ec2 instance 
+  connection {
+    type        = "ssh"
+    user        = "ec2-user"
+    private_key = file(local_file.ssh_key.filename)
+    host        = aws_instance.ec2_instance.public_ip
+  }
+
+
+  # set permissions and run the  file
+  provisioner "remote-exec" {
+    inline = [
+      "ls",
+      "pwd",
+      # Install httpd
+      "sh scripts/apache_installation.sh",
+
+      # Install JFROG
+      "sh scripts/jfrog_installation.sh",
+    ]
+  }
+
+  # wait for ec2 to be created
+  depends_on = [aws_instance.splunk-forwarder]
+}
+
