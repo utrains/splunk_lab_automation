@@ -12,5 +12,9 @@ output "ssh_splunk_server_command" {
 }
 
 output "Connexion_for_jfog_server" {
-  value     = join ("", ["http://", aws_instance.splunk-forwarder, ":", "8081"])
+  value     = join ("", ["http://", aws_instance.splunk-forwarder.public_ip, ":", "8081"])
+}
+
+output "Connexion_for_artifactory_server" {
+  value     = join ("", ["http://", aws_instance.splunk-forwarder.public_ip, ":", "8082"])
 }

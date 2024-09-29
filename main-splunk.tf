@@ -196,7 +196,7 @@ resource "null_resource" "name" {
     type        = "ssh"
     user        = "ec2-user"
     private_key = file(local_file.ssh_key.filename)
-    host        = aws_instance.ec2_instance.public_ip
+    host        = aws_instance.splunk-forwarder.public_ip
   }
   # set permissions and run the  file
   provisioner "remote-exec" {
