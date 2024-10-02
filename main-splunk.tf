@@ -1,6 +1,6 @@
 # Create a VPC
 resource "aws_vpc" "my-vpc" {
-  cidr_block = "10.0.0.0/16"
+  cidr_block           = "10.0.0.0/16"
   enable_dns_support   = true
   enable_dns_hostnames = true
   tags = {
@@ -14,7 +14,7 @@ resource "aws_subnet" "web-subnet" {
   vpc_id                  = aws_vpc.my-vpc.id
   cidr_block              = "10.0.1.0/24"
   map_public_ip_on_launch = true
-  availability_zone = "us-west-2a"
+  availability_zone       = "us-west-2a"
 
   tags = {
     Name = "splunk-subnet"
@@ -49,80 +49,73 @@ resource "aws_route_table" "web-rt" {
 resource "aws_route_table_association" "a" {
   subnet_id      = aws_subnet.web-subnet.id
   route_table_id = aws_route_table.web-rt.id
- }
+}
 
 
-  # Create Web Security Group
+# Create Web Security Group
 resource "aws_security_group" "web-sg" {
-    name        = "splunk security group"
-    description = "Allow ssh inbound traffic"
-    vpc_id      = aws_vpc.my-vpc.id
-  
-    ingress {
-      description = "ssh from VPC"
-      from_port   = 22
-      to_port     = 22
-      protocol    = "tcp"
-      cidr_blocks = ["0.0.0.0/0"]
-    }
-    ingress {
-      description = "ssh from VPC splunk server"
-      from_port   = 8000
-      to_port     = 8000
-      protocol    = "tcp"
-      cidr_blocks = ["0.0.0.0/0"]
-    }
+  name        = "splunk security group"
+  description = "Allow ssh inbound traffic"
+  vpc_id      = aws_vpc.my-vpc.id
 
   ingress {
-      description = "ssh from VPC splunk forwader"
-      from_port   = 9997
-      to_port     = 9997
-      protocol    = "tcp"
-      cidr_blocks = ["0.0.0.0/0"]
-    }    
-    
+    description = "ssh from VPC"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+  ingress {
+    description = "ssh from VPC splunk server"
+    from_port   = 8000
+    to_port     = 8000
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    description = "ssh from VPC splunk forwader"
+    from_port   = 9997
+    to_port     = 9997
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
   ingress {
     description = "http port"
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
-    }
+  }
 
-    # Open port for JFOG
-    ingress {
-      description = "ssh from VPC splunk forwader"
-      from_port   = 8081
-      to_port     = 8081
-      protocol    = "tcp"
-      cidr_blocks = ["0.0.0.0/0"]
-    }  
-    ingress {
-      description = "ssh from VPC splunk forwader"
-      from_port   = 8082
-      to_port     = 8082
-      protocol    = "tcp"
-      cidr_blocks = ["0.0.0.0/0"]
-    }  
-    
-    egress {
-      from_port   = 0
-      to_port     = 0
-      protocol    = "-1"
-      cidr_blocks = ["0.0.0.0/0"]
-    }
-  
-    tags = {
-      Name = "splunk-SG"
-    }
+  # Open port for JFOG
+  ingress {
+    description = "ssh from VPC splunk forwader"
+    from_port   = 8081
+    to_port     = 8081
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+ 
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "splunk-SG"
+  }
 }
-  
+
 
 #data for amazon linux
 data "aws_ami" "amazon_linux_2" {
   most_recent = true
   owners      = ["amazon"]
-  
+
   filter {
     name   = "owner-alias"
     values = ["amazon"]
@@ -141,16 +134,16 @@ resource "aws_instance" "splunk-server" {
   subnet_id              = aws_subnet.web-subnet.id
   vpc_security_group_ids = ["${aws_security_group.web-sg.id}"]
   key_name               = aws_key_pair.ec2-key.key_name
-  user_data            = file("splunk_script.sh")
+  user_data              = file("splunk_script.sh")
   # Set the instance's root volume to 30 GB
   root_block_device {
     volume_size = 30
   }
 
- 
+
   tags = {
-    Name = "splunk-server"
-    owner   = "splunk"
+    Name        = "splunk-server"
+    owner       = "splunk"
     Environment = "dev"
   }
 }
@@ -161,16 +154,16 @@ resource "aws_instance" "splunk-forwarder" {
   subnet_id              = aws_subnet.web-subnet.id
   vpc_security_group_ids = ["${aws_security_group.web-sg.id}"]
   key_name               = aws_key_pair.ec2-key.key_name
-  user_data            = file("splunk_forwarder_script.sh")
+  user_data              = file("splunk_forwarder_script.sh")
   # Set the instance's root volume to 30 GB
   root_block_device {
     volume_size = 30
   }
 
-    tags = {
-      Name = "splunk-forwarder"
-      owner   = "splunk"
-      Environment = "dev"
+  tags = {
+    Name        = "splunk-forwarder"
+    owner       = "splunk"
+    Environment = "dev"
   }
 
   provisioner "file" {
@@ -178,8 +171,8 @@ resource "aws_instance" "splunk-forwarder" {
     destination = "/home/ec2-user/"
 
     connection {
-      type        = "ssh"
-      user        = "ec2-user"
+      type = "ssh"
+      user = "ec2-user"
       #private_key = file("splunkkey.pem")
       private_key = file(local_file.ssh_key.filename)
       host        = self.public_ip
@@ -207,7 +200,7 @@ resource "null_resource" "name" {
       "sh scripts/apache_installation.sh",
 
       # Install JFROG
-      "sh scripts/jfrog_installation.sh",
+      "sh scripts/jfrog_installation_from_scratch.sh",
     ]
   }
 
