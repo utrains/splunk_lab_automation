@@ -1,0 +1,5 @@
+estephe; sudo, dev
+hermann90; sudo, dev, web
+darelle; dev, web
+suzie; sudo, dev, web
+serge; sudo, dev, web

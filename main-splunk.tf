@@ -134,7 +134,7 @@ resource "aws_instance" "splunk-server" {
   subnet_id              = aws_subnet.web-subnet.id
   vpc_security_group_ids = ["${aws_security_group.web-sg.id}"]
   key_name               = aws_key_pair.ec2-key.key_name
-  user_data              = file("splunk_script.sh")
+  #user_data              = file("splunk_script.sh")
   # Set the instance's root volume to 30 GB
   root_block_device {
     volume_size = 30
@@ -146,28 +146,9 @@ resource "aws_instance" "splunk-server" {
     owner       = "splunk"
     Environment = "dev"
   }
-}
 
-resource "aws_instance" "splunk-forwarder" {
-  ami                    = data.aws_ami.amazon_linux_2.id
-  instance_type          = var.aws_instance_type
-  subnet_id              = aws_subnet.web-subnet.id
-  vpc_security_group_ids = ["${aws_security_group.web-sg.id}"]
-  key_name               = aws_key_pair.ec2-key.key_name
-  user_data              = file("splunk_forwarder_script.sh")
-  # Set the instance's root volume to 30 GB
-  root_block_device {
-    volume_size = 30
-  }
-
-  tags = {
-    Name        = "splunk-forwarder"
-    owner       = "splunk"
-    Environment = "dev"
-  }
-
-  provisioner "file" {
-    source      = "${path.module}/scripts"
+    provisioner "file" {
+    source      = "${path.module}/scripts_for_splunk_server"
     destination = "/home/ec2-user/"
 
     connection {
@@ -181,7 +162,103 @@ resource "aws_instance" "splunk-forwarder" {
   }
 }
 
-# an empty resource block : Here we can connect to the server to run some bash commands that will allow us to install nexus.
+resource "aws_instance" "splunk-forwarder" {
+  ami                    = data.aws_ami.amazon_linux_2.id
+  instance_type          = var.aws_instance_type
+  subnet_id              = aws_subnet.web-subnet.id
+  vpc_security_group_ids = ["${aws_security_group.web-sg.id}"]
+  key_name               = aws_key_pair.ec2-key.key_name
+  #user_data              = file("splunk_forwarder_script.sh")
+  # Set the instance's root volume to 30 GB
+  root_block_device {
+    volume_size = 30
+  }
+
+  tags = {
+    Name        = "splunk-forwarder"
+    owner       = "splunk"
+    Environment = "dev"
+  }
+
+  provisioner "file" {
+    source      = "${path.module}/scripts_for_splunk_forwarder"
+    destination = "/home/ec2-user/"
+
+    connection {
+      type = "ssh"
+      user = "ec2-user"
+      #private_key = file("splunkkey.pem")
+      private_key = file(local_file.ssh_key.filename)
+      host        = self.public_ip
+      timeout     = "1m"
+    }
+  }
+
+  provisioner "file" {
+    source      = "${path.module}/script_for_forwarder_config"
+    destination = "/home/ec2-user/"
+
+    connection {
+      type = "ssh"
+      user = "ec2-user"
+      #private_key = file("splunkkey.pem")
+      private_key = file(local_file.ssh_key.filename)
+      host        = self.public_ip
+      timeout     = "1m"
+    }
+  }
+}
+
+# just install the splunk forwader script
+resource "null_resource" "install_splunk_forwarder" {
+
+  # ssh into the ec2 instance 
+  connection {
+    type        = "ssh"
+    user        = "ec2-user"
+    private_key = file(local_file.ssh_key.filename)
+    host        = aws_instance.splunk-forwarder.public_ip
+  }
+  # set permissions and run the  file
+  provisioner "remote-exec" {
+    inline = [
+      "ls",
+      "pwd",
+      # Install httpd
+      "sh scripts_for_splunk_forwarder/splunk_forwarder_script.sh",
+    ]
+  }
+
+  # wait for ec2 to be created
+  depends_on = [aws_instance.splunk-forwarder]
+}
+
+# just install the splunk server script
+resource "null_resource" "install_splunk_server" {
+
+  # ssh into the ec2 instance 
+  connection {
+    type        = "ssh"
+    user        = "ec2-user"
+    private_key = file(local_file.ssh_key.filename)
+    host        = aws_instance.splunk-server.public_ip
+  }
+  # set permissions and run the  file
+  provisioner "remote-exec" {
+    inline = [
+      "ls",
+      "pwd",
+      # Install httpd
+      "sh scripts_for_splunk_server/splunk_script.sh",
+    ]
+  }
+
+  # wait for ec2 to be created
+  depends_on = [aws_instance.splunk-server]
+}
+
+
+# Wait for scripts to be installed in the first two null_resources before installing the last null_resource.
 resource "null_resource" "name" {
 
   # ssh into the ec2 instance 
@@ -197,14 +274,20 @@ resource "null_resource" "name" {
       "ls",
       "pwd",
       # Install httpd
-      "sh scripts/apache_installation.sh",
+      "sh script_for_forwarder_config/apache_installation.sh",
 
       # Install JFROG
-      "sh scripts/jfrog_installation_from_scratch.sh",
+      "sh script_for_forwarder_config/jfrog_installation_from_scratch.sh",
+
+      # Create the users
+      "sudo sh script_for_forwarder_config/create_users.sh script_for_forwarder_config/user_informations.txt",
+
+      # End configuration on forwader
+      "sudo sh script_for_forwarder_config/config_host_forwader.sh ${aws_instance.splunk-server.public_ip}",
     ]
   }
 
-  # wait for ec2 to be created
-  depends_on = [aws_instance.splunk-forwarder]
+  # wait the 2 null resource that install splunk and splunk forwarder
+  depends_on = [null_resource.install_splunk_server, null_resource.install_splunk_forwarder]
 }
 

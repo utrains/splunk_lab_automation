@@ -6,6 +6,9 @@
 #-----------------------------------------------------------------------------------------------------------------------#
 # This function takes a step as parameter (exampe etap 1), then the service name (example docker), 
 # then confirms whether or not the service has been installed.
+# 
+# Write By : Hermann90 for Utrains                                                                                      #                                                                                             
+
 confirm_installation_step () {
 	if [ $? -eq 0 ]; then
 		echo ">>>>>>>>>>>>>>>> $1 : $2 SUCESS <<<<<<<<<<<<<<<<"
