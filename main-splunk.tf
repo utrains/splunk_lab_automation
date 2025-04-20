@@ -248,6 +248,9 @@ resource "null_resource" "install_splunk_server" {
     inline = [
       "ls",
       "pwd",
+      "sudo yum update -y ",
+      "sudo yum install dos2unix -y",
+      "dos2unix /home/ec2-user/scripts_for_splunk_server/*.sh",
       # Install httpd
       "sh scripts_for_splunk_server/splunk_script.sh",
     ]
@@ -273,6 +276,10 @@ resource "null_resource" "name" {
     inline = [
       "ls",
       "pwd",
+      "sudo yum update -y ",
+      "sudo yum install dos2unix -y",
+      "dos2unix /home/ec2-user/script_for_forwarder_config/*.sh",
+      
       # Install httpd
       "sh script_for_forwarder_config/apache_installation.sh",
 
